@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "Vardot Reply Suggester",
+    "short_description": "Use OpenAI's ChatGPT to suggest replies Support tickets.",
+    "long_description": "Use OpenAI's ChatGPT to suggest replies Support tickets.",
+    "installation_instructions": "Add your OpenAI API key and click install.",
+    "parameters": {
+      "openAiApiToken" : {
+        "label": "OpenAI API key"
+      }
+    }
+  }
+}

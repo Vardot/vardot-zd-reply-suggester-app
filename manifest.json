@@ -1,0 +1,28 @@
+{
+  "name": "Vardot Reply Suggester",
+  "author": {
+    "name": "Mohammed Razem",
+    "email": "m.razem@vardot.com",
+    "url": "https://www.vardot.com"
+  },
+  "defaultLocale": "en",
+  "private": true,
+  "location": {
+    "support": {
+      "ticket_sidebar": {
+        "url": "assets/iframe.html",
+        "flexible": true
+      }
+    }
+  },
+  "version": "1.0.0",
+  "frameworkVersion": "2.0",
+  "domainWhitelist": ["api.openai.com"],
+  "parameters": [
+    {
+      "name": "openAiApiToken",
+      "type": "text",
+      "secure": true
+    }
+  ]
+}
