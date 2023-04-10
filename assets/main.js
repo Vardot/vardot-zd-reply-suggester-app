@@ -1,55 +1,113 @@
 const client = ZAFClient.init();
-
-async function updateSummary() {
-  const convo = await getTicketConvo();
-  const prompt = await getPrompt(convo);
-  const summary = await getSummary(prompt);
-  const container = document.getElementById("container");
-
-  container.innerHTML = summary;
-}
-
-async function getTicketConvo() {
-  const ticketConvo = await client.get("ticket.conversation");
-  return JSON.stringify(ticketConvo["ticket.conversation"]);
-}
-
-async function getPrompt(convo) {
-  return `
-The following is a customer support ticket. Knowing that the agent who is going to be responding is from Vardot, provide the below in the following format main headers, and return the headers as h5 HTML tags, lists as HTML lists.
+const TEMPLATE_INITIAL_PROMPT = `The following is a customer support ticket. Knowing that the agent who is going to be responding is from Vardot, provide the below information, and return response under the main headers below with headers as h5 HTML tags, lists as HTML lists.
 - Suggested questions to ask to clarify the request.
 - Suggest brief response.
 - Suggested actions the agent should take.
 
-Keep it less formal, natural and customer-service oriented.
+Keep it less formal, natural, not very apologetic, and customer-service oriented.`;
+
+async function updateSummary() {
+  // Show the div#container and display loading text
+  container.style.display = "block";
+  container.innerHTML = "Analyzing...";
+
+  try {
+    const convo = await getTicketConvo();
+    const prompt = await getPrompt(convo);
+    const summary = await getSummary(prompt);
+    const container = document.getElementById("container");
+
+    container.innerHTML = summary;
+  } catch (error) {
+    container.innerHTML = `An error occured: ${JSON.stringify(error)}`;
+  }
+}
+
+async function getTicketConvo() {
+  try {
+    const ticketConvo = await client.get("ticket.conversation");
+    let filteredConvo = ticketConvo["ticket.conversation"];
+
+    // @todo, turn this into a setting to work from setting.excludeInternalConvo param
+    if (true) {
+      filteredConvo = filteredConvo.filter((conversation) => conversation.channel.name !== "internal");
+    }
+
+    // Check if either setting.excludeAgentsConvo is true or input#exclude-agent is checked
+    const excludeAgentCheckbox = document.getElementById("exclude-agent");
+    // @todo, turn this into a setting to work from setting.excludeInternalConvo param
+    if (excludeAgentCheckbox.checked) {
+      filteredConvo = filteredConvo.filter((conversation) => conversation.author.role === "end-user");
+    }
+
+    // Remove unwanted details in object to reduce OpenAI API tokens
+    const cleanedConvo = cleanTicketConvoData(filteredConvo);
+    return JSON.stringify(cleanedConvo);
+  } catch (error) {
+    console.log(`An error occured: ${JSON.stringify(error)}`);
+  }
+}
+
+async function getPrompt(convo) {
+  return `${TEMPLATE_INITIAL_PROMPT}
 
 ${convo}`;
 }
 
-async function getSummary(prompt) {
-  const options = {
-    url: "https://api.openai.com/v1/chat/completions",
-    type: "POST",
-    contentType: "application/json",
-    headers: {
-      Authorization: "Bearer {{setting.openAiApiToken}}",
-    },
-    data: JSON.stringify({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-    }),
-    secure: true,
-  };
-  const response = await client.request(options);
+function cleanTicketConvoData(rawData) {
+  return rawData.map(conversation => {
+    const { author, channel, ...remainingConversation } = conversation;
+    const { id, avatar, ...remainingAuthor } = author;
+    const { contentType, ...remainingMessage } = remainingConversation.message;
 
-  return response.choices[0].message.content.trim();
+    return {
+      ...remainingConversation,
+      author: remainingAuthor,
+      message: remainingMessage
+    };
+  });
 }
 
-client.on("app.registered", () => {
+async function getSummary(prompt) {
+  try {
+    const options = {
+      url: "https://api.openai.com/v1/chat/completions",
+      type: "POST",
+      contentType: "application/json",
+      headers: {
+        Authorization: "Bearer {{setting.openAiApiToken}}",
+      },
+      data: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }],
+      }),
+      secure: true,
+    };
+    const response = await client.request(options);
+
+    return response.choices[0].message.content.trim();
+  } catch (error) {
+    console.error(JSON.stringify(error));
+    throw error;
+  }
+}
+
+
+// Event listener for the button click
+document.getElementById("ticket_summarizer-get-summary").addEventListener("click", async (event) => {
+  event.target.classList.add("is-disabled");
+  const label = document.querySelector(".exclude-agent-label");
+  label.classList.add("is-disabled");
+
+  await updateSummary();
+
   client.invoke("resize", { width: "100%", height: "400px" });
-  updateSummary();
+  event.target.classList.remove("is-disabled");
+  label.classList.remove("is-disabled");
+
 });
 
 client.on("ticket.conversation.changed", () => {
-  updateSummary();
+  const container = document.getElementById("container");
+  container.innerHTML = "Conversation changed. Click to analyze again with the new changes.";
 });

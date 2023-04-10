@@ -7,6 +7,12 @@
     "parameters": {
       "openAiApiToken" : {
         "label": "OpenAI API key"
+      },
+      "excludeInternalConvo" : {
+        "label": "Exclude internal comments from ticket analysis"
+      },
+      "excludeAgentsConvo" : {
+        "label": "Exclude agents replies from ticket analysis"
       }
     }
   }

@@ -23,6 +23,14 @@
       "name": "openAiApiToken",
       "type": "text",
       "secure": true
+    },
+    {
+      "name": "excludeInternalConvo",
+      "type": "checkbox"
+    },
+    {
+      "name": "excludeAgentsConvo",
+      "type": "checkbox"
     }
   ]
 }
