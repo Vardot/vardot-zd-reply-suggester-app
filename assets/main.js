@@ -12,14 +12,31 @@ async function updateSummary() {
   container.innerHTML = "Analyzing...";
 
   try {
+    // Disable button
+    const button = document.querySelector("#ticket_summarizer-get-summary");
+    const label = document.querySelector(".exclude-agent-label");
+    button.classList.add("is-disabled");
+    label.classList.add("is-disabled");
+
+    // Get summary
     const convo = await getTicketConvo();
     const prompt = await getPrompt(convo);
     const summary = await getSummary(prompt);
     const container = document.getElementById("container");
 
+    // Re-enable button
+    client.invoke("resize", { width: "100%", height: "400px" });
+    button.classList.remove("is-disabled");
+    label.classList.remove("is-disabled");
+
     container.innerHTML = summary;
   } catch (error) {
     container.innerHTML = `An error occured: ${error.responseJSON.error.message}`;
+
+    // Re-enable button
+    client.invoke("resize", { width: "100%", height: "400px" });
+    event.target.classList.remove("is-disabled");
+    label.classList.remove("is-disabled");
   }
 }
 
@@ -95,17 +112,14 @@ async function getSummary(prompt) {
 
 // Event listener for the button click
 document.getElementById("ticket_summarizer-get-summary").addEventListener("click", async (event) => {
-  event.target.classList.add("is-disabled");
-  const label = document.querySelector(".exclude-agent-label");
-  label.classList.add("is-disabled");
-
   await updateSummary();
-
-  client.invoke("resize", { width: "100%", height: "400px" });
-  event.target.classList.remove("is-disabled");
-  label.classList.remove("is-disabled");
-
 });
+
+client.on("app.registered", () => {
+  client.invoke("resize", { width: "100%", height: "400px" });
+  updateSummary();
+});
+
 
 client.on("ticket.conversation.changed", () => {
   const container = document.getElementById("container");
