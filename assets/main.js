@@ -19,7 +19,7 @@ async function updateSummary() {
 
     container.innerHTML = summary;
   } catch (error) {
-    container.innerHTML = `An error occured: ${JSON.stringify(error)}`;
+    container.innerHTML = `An error occured: ${error.responseJSON.error.message}`;
   }
 }
 
