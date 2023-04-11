@@ -1,8 +1,6 @@
 # Vardot Zendesk Reply Suggester App
 Vardot Zendesk Reply Suggester App is a simple and efficient application developed by Mohammed Razem that integrates Zendesk with OpenAI GPT-3.5. The app leverages the power of GPT-3.5 to provide quick and accurate reply suggestions for support agents, improving their response time and overall customer satisfaction.
 
-This app is based on Zendesk AI's guide, which can be found here: https://developer.zendesk.com/documentation/apps/build-an-app/using-ai-to-summarize-conversations-in-a-support-app/
-
 ## Features
 - Seamless integration with Zendesk
 - Utilizes OpenAI GPT-3.5 for generating reply suggestions
@@ -21,5 +19,4 @@ Once installed, the Vardot Zendesk Reply Suggester App will appear in your Zende
 This project is licensed under the MIT License.
 
 ## Credits
-- Mohammed Razem
-- Zendesk AI's Guide (https://developer.zendesk.com/documentation/apps/build-an-app/using-ai-to-summarize-conversations-in-a-support-app/)
+- Mohammed Razem (m.razem@vardot.com)
