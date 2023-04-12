@@ -9,12 +9,13 @@ Keep it less formal, natural, not very apologetic, and customer-service oriented
 async function updateSummary() {
   // Show the div#container and display loading text
   container.style.display = "block";
-  container.innerHTML = "Analyzing...";
+  container.innerHTML = "Loading the ticket summary...";
+
+  // UI elements to work with
+  const button = document.querySelector("#ticket_summarizer-get-summary");
+  const label = document.querySelector(".exclude-agent-label");
 
   try {
-    // Disable button
-    const button = document.querySelector("#ticket_summarizer-get-summary");
-    const label = document.querySelector(".exclude-agent-label");
     button.classList.add("is-disabled");
     label.classList.add("is-disabled");
 
@@ -35,8 +36,8 @@ async function updateSummary() {
 
     // Re-enable button
     client.invoke("resize", { width: "100%", height: "400px" });
-    event.target.classList.remove("is-disabled");
-    label.classList.remove("is-disabled");
+    button.classList.add("is-disabled");
+    label.classList.add("is-disabled");
   }
 }
 
