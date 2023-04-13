@@ -6,77 +6,87 @@ const TEMPLATE_INITIAL_PROMPT = `The following is a customer support ticket. Kno
 
 Keep it less formal, natural, not very apologetic, and customer-service oriented.`;
 
-async function updateSummary() {
-  // Show the div#container and display loading text
-  container.style.display = "block";
-  container.innerHTML = "Loading the ticket summary...";
+const container = document.getElementById("container");
+const excludeAgentCheckbox = document.getElementById("exclude-agent");
+const convoContainer = document.getElementById('convo-container');
+const checkBoxesWrapper = document.getElementById('checkboxes-wrapper');
 
-  // UI elements to work with
+
+// Main function to update the summary from OpenAI
+async function updateSummary(convo, showCheckboxes = false) {
+  container.style.display = "block";
+  container.textContent = "Analyzing...";
+
   const button = document.querySelector("#ticket_summarizer-get-summary");
   const label = document.querySelector(".exclude-agent-label");
 
+  const prompt = await getPrompt(JSON.stringify(convo));
+
   try {
-    button.classList.add("is-disabled");
-    label.classList.add("is-disabled");
+    setUIState({ button, label }, "disabled");
 
-    // Get summary
-    const convo = await getTicketConvo();
-    const prompt = await getPrompt(convo);
     const summary = await getSummary(prompt);
-    const container = document.getElementById("container");
 
-    // Re-enable button
     client.invoke("resize", { width: "100%", height: "400px" });
-    button.classList.remove("is-disabled");
-    label.classList.remove("is-disabled");
+    setUIState({ button, label }, "enabled");
 
+    if (showCheckboxes) {
+      checkBoxesWrapper.style.display = "block";
+    }
+    else {
+     checkBoxesWrapper.style.display = "none"; 
+    }
     container.innerHTML = summary;
   } catch (error) {
-    container.innerHTML = `An error occured: ${error.responseJSON.error.message}`;
+    container.textContent = `An error occured: ${error.responseJSON.error.message}`;
 
-    // Re-enable button
-    client.invoke("resize", { width: "100%", height: "400px" });
-    button.classList.add("is-disabled");
-    label.classList.add("is-disabled");
+    const convo = await getTicketConvo(true, excludeAgentCheckbox.checked);
+    checkBoxesWrapper.style.display = "block";
+    convoContainer.innerHTML = renderConvoCheckboxes(convo);
+
+    setUIState({ button, label }, "enabled");
   }
 }
 
-async function getTicketConvo() {
+function setUIState({ button, label }, state) {
+  if (state === "disabled") {
+    button.classList.add("is-disabled");
+    label.classList.add("is-disabled");
+  } else {
+    button.classList.remove("is-disabled");
+    label.classList.remove("is-disabled");
+  }
+}
+
+// Gets the ticket conversation and filters conversation replies based on some rules
+async function getTicketConvo(excludeInternal = true, excludeAgent) {
   try {
     const ticketConvo = await client.get("ticket.conversation");
     let filteredConvo = ticketConvo["ticket.conversation"];
 
-    // @todo, turn this into a setting to work from setting.excludeInternalConvo param
-    if (true) {
-      filteredConvo = filteredConvo.filter((conversation) => conversation.channel.name !== "internal");
+    if (excludeInternal) {
+      filteredConvo = filteredConvo.filter(conversation => conversation.channel.name !== "internal");
     }
 
-    // Check if either setting.excludeAgentsConvo is true or input#exclude-agent is checked
-    const excludeAgentCheckbox = document.getElementById("exclude-agent");
-    // @todo, turn this into a setting to work from setting.excludeInternalConvo param
-    if (excludeAgentCheckbox.checked) {
-      filteredConvo = filteredConvo.filter((conversation) => conversation.author.role === "end-user");
+    if (excludeAgent) {
+      filteredConvo = filteredConvo.filter(conversation => conversation.author.role === "end-user");
     }
 
-    // Remove unwanted details in object to reduce OpenAI API tokens
-    const cleanedConvo = cleanTicketConvoData(filteredConvo);
-    return JSON.stringify(cleanedConvo);
+    return cleanTicketConvoData(filteredConvo);
   } catch (error) {
-    console.log(`An error occured: ${JSON.stringify(error)}`);
+    console.error(`An error occurred: ${JSON.stringify(error)}`);
+    throw error;
   }
 }
 
 async function getPrompt(convo) {
-  return `${TEMPLATE_INITIAL_PROMPT}
-
-${convo}`;
+  return `${TEMPLATE_INITIAL_PROMPT}\n\n${convo}`;
 }
 
 function cleanTicketConvoData(rawData) {
-  return rawData.map(conversation => {
-    const { author, channel, ...remainingConversation } = conversation;
+  return rawData.map(({ author, channel, message, ...remainingConversation }) => {
     const { id, avatar, ...remainingAuthor } = author;
-    const { contentType, ...remainingMessage } = remainingConversation.message;
+    const { contentType, ...remainingMessage } = message;
 
     return {
       ...remainingConversation,
@@ -110,19 +120,88 @@ async function getSummary(prompt) {
   }
 }
 
+// Helper function to remove the HTML from conversations
+function stripHTML(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+// Helper function to truncate convestation in checkboxes
+function truncate(str, n) {
+  return (str.length > n) ? str.substr(0, n - 1) + '…' : str;
+}
+
+// Render checkboxes functions
+function renderConvoCheckboxes(convo) {
+  let html = '';
+
+  convo.forEach((item, index) => {
+    const count = index + 1;
+    const authorName = item.author.name;
+    const timestamp = item.timestamp;
+    const dateObj = new Date(timestamp);
+    const date = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+    const messageContent = stripHTML(item.message.content);
+    const truncatedContent = truncate(messageContent, 30);
+
+    html += `
+      <div class="c-chk u-mb-xs">
+        <input class="c-chk__input" id="chk-${count}" name="chk-${count}" type="checkbox" />
+        <label class="c-chk__label c-chk__label--regular c-chk__label--regular" for="chk-${count}">
+          #${count} ${authorName} on ${date} – ${truncatedContent}
+        </label>
+      </div>`;
+  });
+
+  return html;
+}
+
 
 // Event listener for the button click
-document.getElementById("ticket_summarizer-get-summary").addEventListener("click", async (event) => {
-  await updateSummary();
+document.getElementById("ticket_summarizer-get-summary").addEventListener("click", async () => {
+  const convo = await getTicketConvo(true, excludeAgentCheckbox.checked);
+
+  // Check if any of the convo checkboxes are checked
+  const checkboxes = document.getElementsByClassName("c-chk__input");
+  let isChecked = false;
+  for (let checkbox of checkboxes) {
+    if (checkbox.checked) {
+      isChecked = true;
+      break;
+    }
+  }
+
+  // If any checkbox is checked and checkbox wrapper is visible
+  if (isChecked && checkBoxesWrapper.style.display === "block") {
+    // Filter out the items that correspond to unchecked checkboxes
+    const cherryPickedConvo = convo.filter((item, index) => {
+      const checkbox = document.getElementById(`chk-${index + 1}`);
+      return checkbox.checked;
+    });
+
+    // Send the filtered object to the updateSummary function
+    await updateSummary(cherryPickedConvo, true);
+  } else {
+    // If no checkboxes are checked or checkBoxesWrapper.style.display is not "block", send the original convo object
+    await updateSummary(convo);
+  }
 });
 
-client.on("app.registered", () => {
+// Event listener for the checkbox state change
+document.getElementById("exclude-agent").addEventListener("change", async () => {
+  // Build list to cherry-pick conversations
+  const convo = await getTicketConvo(true, excludeAgentCheckbox.checked);
+  convoContainer.innerHTML = renderConvoCheckboxes(convo);
+});
+
+
+client.on("app.registered", async () => {
   client.invoke("resize", { width: "100%", height: "400px" });
-  updateSummary();
+  const convo = await getTicketConvo(true, excludeAgentCheckbox.checked);
+  await updateSummary(convo);
 });
 
-
-client.on("ticket.conversation.changed", () => {
-  const container = document.getElementById("container");
-  container.innerHTML = "Conversation changed. Click to analyze again with the new changes.";
+client.on("ticket.conversation.changed", async () => {
+  container.innerHTML = "Conversation changed. Click to regenerate the summary with the new changes.";
 });

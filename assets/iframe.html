@@ -28,12 +28,16 @@
     </style>
   </head>
   <body>
-    <div class="u-display-block u-ta-center u-pb">
+    <div class="u-display-block u-pb-sm u-ta-center">
       <button class="c-btn c-btn--sm ticket_summarizer-get-summary" id="ticket_summarizer-get-summary">Generate suggestions using AI</button>
       <div class="c-chk u-mt-sm">
         <input class="c-chk__input" id="exclude-agent" type="checkbox" checked />
         <label class="c-chk__label c-chk__label--toggle exclude-agent-label" for="exclude-agent" style="font-weight: normal;">Exclude agent replies from summary</label>
       </div>
+    </div>  
+    <div class="u-pb" id="checkboxes-wrapper" style="display: none;">
+      <div class="c-chk u-mb-sm">Optionally, choose a thread below to summarize. Useful for API length limits errors. Choose none to summarize all.</div>
+      <div id="convo-container"></div>
     </div>
     <div class="u-pt border-top" id="container" style="display: none;">Analyzing...</div>
     <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
